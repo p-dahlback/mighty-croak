@@ -1,0 +1,6 @@
+rootProject.name = 'mighty-croak'
+
+include 'core'
+
+include 'box2d'
+

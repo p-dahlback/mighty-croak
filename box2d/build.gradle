@@ -1,0 +1,73 @@
+apply plugin: 'java'
+apply plugin: "maven"
+
+sourceCompatibility = 1.6
+version = '1.0'
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets.all { set ->
+    def jarTask = task("${set.name}Jar", type: Jar) {
+        baseName = baseName + "-$set.name"
+        from set.output
+    }
+
+    artifacts {
+        archives jarTask
+    }
+}
+
+sourceSets {
+    api {
+        java.srcDir file('src/api/java')
+    }
+    impl {
+        java.srcDir file('src/impl/java')
+    }
+}
+
+
+dependencies {
+
+    compile project(':core')
+
+    compile "com.badlogicgames.gdx:gdx:$gdxVersion"
+    compile "com.badlogicgames.gdx:gdx-box2d:$gdxVersion"
+
+    implCompile sourceSets.api.output
+
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+    testCompile sourceSets.api.output
+    testCompile sourceSets.impl.output
+    runtime configurations.apiRuntime
+    runtime configurations.implRuntime
+}
+
+jar {
+    from sourceSets.api.output
+    from sourceSets.impl.output
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: uri("${buildDir}/repo"))
+
+            addFilter("main") { artifact, file -> artifact.name == project.name }
+            ["api", "impl"].each { type ->
+                addFilter(type) { artifact, file -> artifact.name.endsWith("-$type") }
+
+                // We now have to map our configurations to the correct maven scope for each pom
+                ["compile", "runtime"].each { scope ->
+                    configuration = configurations[type + scope.capitalize()]
+                    ["main", type].each { pomName ->
+                        pom(pomName).scopeMappings.addMapping 1, configuration, scope
+                    }
+                }
+            }
+
+        }
+    }
+}
